@@ -80,18 +80,18 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 13: Aritmética do ledger é sempre balanceada**
     - **Validates: Requirements 6.2**
 
-  - [-] 3.4 Escrever testes unitários para `Wallet` e `WalletLedgerEntry`
+  - [x] 3.4 Escrever testes unitários para `Wallet` e `WalletLedgerEntry`
     - Cobrir: invariantes, debit/credit, saldo insuficiente, versão, aritmética do ledger
     - _Requirements: 2.4, 2.5, 6.2, 15.1_
 
-- [ ] 4. WagerTransaction — entidade e ciclo de vida
-  - [ ] 4.1 Implementar enums e FailureCodes
+- [x] 4. WagerTransaction — entidade e ciclo de vida
+  - [x] 4.1 Implementar enums e FailureCodes
     - Criar `src/domain/wager-transaction/wager-transaction.enums.ts` com `WagerTransactionKind` e `WagerTransactionStatus`
     - Criar `src/domain/wager-transaction/failure-codes.ts` com `FailureCode` enum completo
     - Documentar taxonomia de `FailureCode` em `ARCHITECTURE.md`
     - _Requirements: 3.4, 5.2, 5.7, 5.8, 5.9, 7.2_
 
-  - [ ] 4.2 Implementar `WagerTransaction` entity com máquina de estados
+  - [x] 4.2 Implementar `WagerTransaction` entity com máquina de estados
     - Criar `src/domain/wager-transaction/wager-transaction.entity.ts` com construtor privado
     - Implementar factory `create` (nasce em `PENDING`, valida exigência de referência por kind)
     - Implementar factory `rehydrate` (sem revalidação)
@@ -102,11 +102,11 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/domain/wager-transaction/wager-transaction.errors.ts`
     - _Requirements: 3.1, 3.4, 3.5, 3.6, 5.3, 5.4, 5.5, 5.6_
 
-  - [ ]* 4.3 Escrever testes de propriedade para `WagerTransaction` (Property 9)
+  - [x]* 4.3 Escrever testes de propriedade para `WagerTransaction` (Property 9)
     - **Property 9: Transições de estado — estados terminais são irreversíveis**
     - **Validates: Requirements 3.6**
 
-  - [ ]* 4.4 Escrever testes unitários para `WagerTransaction`
+  - [x]* 4.4 Escrever testes unitários para `WagerTransaction`
     - Cobrir: regras BET/WIN/LOSS/REFUND/ROLLBACK, estados terminais, OPENING bloqueado
     - _Requirements: 3.4, 3.5, 3.6, 15.1_
 
