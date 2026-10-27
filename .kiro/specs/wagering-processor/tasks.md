@@ -56,8 +56,8 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Cobrir: escala fixa 2 casas, entradas inválidas, conflito de moeda, imutabilidade, serialização
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 15.1_
 
-- [ ] 3. Agregado Wallet e WalletLedgerEntry
-  - [ ] 3.1 Implementar `Wallet` aggregate root
+- [x] 3. Agregado Wallet e WalletLedgerEntry
+  - [x] 3.1 Implementar `Wallet` aggregate root
     - Criar `src/domain/wallet/wallet.aggregate.ts` com construtor privado
     - Implementar factories `open` (cria nova wallet, `version = 1`) e `rehydrate` (sem revalidação)
     - Implementar `debit(money, entry)` e `credit(money, entry)` — verificam saldo, incrementam `version`
@@ -65,14 +65,14 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/domain/wallet/wallet.errors.ts`
     - _Requirements: 2.1, 2.4, 2.5, 5.1, 5.2_
 
-  - [ ] 3.2 Implementar `WalletLedgerEntry` imutável
+  - [x] 3.2 Implementar `WalletLedgerEntry` imutável
     - Criar `src/domain/wallet/wallet-ledger-entry.ts` com construtor privado e sem métodos de transição
     - Implementar factory `create` validando aritmética `balanceBefore ± money === balanceAfter`
     - Implementar factory `rehydrate`
     - Implementar `isBalanced()` como consulta
     - _Requirements: 6.1, 6.2, 6.3_
 
-  - [ ]* 3.3 Escrever testes de propriedade para `Wallet` e `WalletLedgerEntry` (Properties 5, 6, 13)
+  - [x] 3.3 Escrever testes de propriedade para `Wallet` e `WalletLedgerEntry` (Properties 5, 6, 13)
     - **Property 5: Saldo da Wallet nunca negativo**
     - **Validates: Requirements 2.5, 5.2**
     - **Property 6: version incrementa somente em mudança de saldo**
@@ -80,7 +80,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 13: Aritmética do ledger é sempre balanceada**
     - **Validates: Requirements 6.2**
 
-  - [ ]* 3.4 Escrever testes unitários para `Wallet` e `WalletLedgerEntry`
+  - [-] 3.4 Escrever testes unitários para `Wallet` e `WalletLedgerEntry`
     - Cobrir: invariantes, debit/credit, saldo insuficiente, versão, aritmética do ledger
     - _Requirements: 2.4, 2.5, 6.2, 15.1_
 
