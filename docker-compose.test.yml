@@ -1,0 +1,86 @@
+# =============================================================================
+# docker-compose.test.yml — Wagering Processor (ambiente de testes isolado)
+#
+# Serviços isolados para execução de testes de integração e concorrência.
+# Portas diferentes para não conflitar com o ambiente de desenvolvimento.
+#
+# Banco:      5433 (mapeado para 5432 interno)
+# LocalStack: 4567 (mapeado para 4566 interno)
+# DB name:    wagering_test
+#
+# Uso:
+#   docker compose -f docker-compose.test.yml up -d
+#   bun run test:integration
+#   bun run test:concurrency
+#   docker compose -f docker-compose.test.yml down -v
+#
+# Nota: A aplicação NestJS NÃO é incluída aqui — os testes rodam no host via Bun.
+# =============================================================================
+
+name: wagering-processor-test
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — banco de dados para testes
+  # ---------------------------------------------------------------------------
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: wagering-postgres-test
+    restart: "no"
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: wagering
+      POSTGRES_PASSWORD: wagering
+      POSTGRES_DB: wagering_test
+    volumes:
+      # Volume efêmero: dados descartados ao fazer `down -v`
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wagering -d wagering_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+    networks:
+      - wagering-test-net
+
+  # ---------------------------------------------------------------------------
+  # LocalStack 3 — emula AWS SQS para testes
+  # ---------------------------------------------------------------------------
+  localstack-test:
+    image: localstack/localstack:3
+    container_name: wagering-localstack-test
+    restart: "no"
+    ports:
+      - "4567:4566"
+    environment:
+      SERVICES: sqs
+      DEBUG: "0"
+      # Sem persistência nos testes: cada rodada começa com estado limpo
+      PERSISTENCE: "0"
+    volumes:
+      # Script de init reutilizando o mesmo da configuração de desenvolvimento
+      - ./scripts/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"sqs\"'"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    networks:
+      - wagering-test-net
+
+# ---------------------------------------------------------------------------
+# Volumes efêmeros para isolamento entre execuções de teste
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-test-data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Rede isolada — evita conflito com a rede do ambiente de desenvolvimento
+# ---------------------------------------------------------------------------
+networks:
+  wagering-test-net:
+    driver: bridge
