@@ -11,7 +11,10 @@
     "test": "bun test --reporter=verbose",
     "test:integration": "bun test --reporter=verbose test/integration",
     "test:concurrency": "bun test --reporter=verbose test/concurrency",
-    "migration:run": "bun run src/infrastructure/persistence/mikro-orm.cli.ts migration:up"
+    "migration:run": "bun run src/infrastructure/persistence/mikro-orm.cli.ts migration:up",
+    "migration:status": "bunx mikro-orm-esm migration:status --config src/infrastructure/persistence/mikro-orm.cli.ts",
+    "migration:down":   "bunx mikro-orm-esm migration:down --config src/infrastructure/persistence/mikro-orm.cli.ts"
+
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "3.1157.0",

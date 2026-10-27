@@ -110,22 +110,22 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Cobrir: regras BET/WIN/LOSS/REFUND/ROLLBACK, estados terminais, OPENING bloqueado
     - _Requirements: 3.4, 3.5, 3.6, 15.1_
 
-- [ ] 5. InboxMessage, OutboxMessage e IntegrationEvents
-  - [ ] 5.1 Implementar `InboxMessage` e `OutboxMessage`
+- [x] 5. InboxMessage, OutboxMessage e IntegrationEvents
+  - [x] 5.1 Implementar `InboxMessage` e `OutboxMessage`
     - Criar `src/domain/outbox/inbox-message.ts` com factories `receive` e `rehydrate`, e `markProcessed`
     - Criar `src/domain/outbox/outbox-message.ts` com factories `enqueue` e `rehydrate`
     - Implementar `scheduleRetry(now)` com backoff `2^attempts * 1000ms` (máx 300s)
     - Implementar `markPublished`, `isPending`, `isDue`
     - _Requirements: 9.2, 10.1, 10.7_
 
-  - [ ] 5.2 Implementar `IntegrationEvent` base e subclasses de eventos
+  - [x] 5.2 Implementar `IntegrationEvent` base e subclasses de eventos
     - Criar `src/domain/events/integration-event.base.ts` como classe abstrata com `toJSON()`
     - Criar subclasses concretas: `WagerTransactionProcessed`, `WagerTransactionRejected`, `WagerTransactionPendingReference`, `WalletBalanceChanged`
     - Garantir `data` com apenas tipos JSON primitivos (MoneyProps como strings)
     - `eventType` e `version` fixados como propriedades do tipo da subclasse
     - _Requirements: 10.2, 11.1, 11.2, 11.3, 11.4_
 
-  - [ ]* 5.3 Escrever testes de propriedade para IntegrationEvents (Properties 19, 20)
+  - [x]* 5.3 Escrever testes de propriedade para IntegrationEvents (Properties 19, 20)
     - **Property 19: Envelope IntegrationEvent contém todos os campos obrigatórios**
     - **Validates: Requirements 11.1**
     - **Property 20: Payload de IntegrationEvent é JSON puro**
