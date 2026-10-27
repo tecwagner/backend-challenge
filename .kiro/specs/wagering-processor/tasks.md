@@ -32,8 +32,8 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/app.module.ts` importando módulos de infraestrutura
     - _Requirements: 13.1, 13.2_
 
-- [ ] 2. Value Object Money e erros de domínio
-  - [ ] 2.1 Implementar `Money` value object imutável
+- [x] 2. Value Object Money e erros de domínio
+  - [-] 2.1 Implementar `Money` value object imutável
     - Criar `src/domain/money/money.ts` com construtor privado e factories `from`, `zero`
     - Implementar operações `add`, `subtract`, `negate` retornando novas instâncias
     - Implementar `isZero`, `isPositive`, `isNegative`, `isLessThan`, `equals`, `toJSON`, `toString`
@@ -42,7 +42,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/domain/money/money.errors.ts` com `InvalidMoneyError`, `CurrencyMismatchError`
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
 
-  - [ ]* 2.2 Escrever testes de propriedade para `Money` (Properties 1–4)
+  - [x] 2.2 Escrever testes de propriedade para `Money` (Properties 1–4)
     - **Property 1: Inputs monetários inválidos são rejeitados**
     - **Validates: Requirements 1.2**
     - **Property 2: Conflito de moeda em operações aritméticas**
@@ -52,7 +52,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 4: Round-trip de serialização do Money**
     - **Validates: Requirements 1.5**
 
-  - [ ]* 2.3 Escrever testes unitários para `Money`
+  - [x] 2.3 Escrever testes unitários para `Money`
     - Cobrir: escala fixa 2 casas, entradas inválidas, conflito de moeda, imutabilidade, serialização
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 15.1_
 

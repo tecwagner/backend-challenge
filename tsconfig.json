@@ -4,6 +4,7 @@
     "moduleResolution": "NodeNext",
     "target": "ES2022",
     "lib": ["ES2022"],
+    "types": ["bun-types"],
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
