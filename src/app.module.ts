@@ -20,6 +20,10 @@ import { ApplicationModule } from './application/application.module.js';
 import { HttpApiModule } from './http/http.module.js';
 import { SqsModule } from './infrastructure/messaging/sqs.module.js';
 import { WorkersModule } from './infrastructure/workers/workers.module.js';
+import { LoggerModule } from './shared/logger/logger.module.js';
+import { MetricsModule } from './shared/metrics/metrics.module.js';
+import { CorrelationIdMiddleware } from './shared/correlation-id.middleware.js';
+import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
 @Module({
   imports: [
@@ -29,9 +33,12 @@ import { WorkersModule } from './infrastructure/workers/workers.module.js';
     HttpApiModule,
     SqsModule,
     WorkersModule,
-
-    // TODO: MetricsModule            — task 15.2
-    // TODO: LoggerModule             — task 15.1
+    LoggerModule,
+    MetricsModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
