@@ -17,15 +17,17 @@ import { ApplicationModule } from './application/application.module.js';
  *  - MetricsModule      → task 15.2 (PrometheusService)
  *  - LoggerModule       → task 15.1 (StructuredLogger)
  */
+import { HttpApiModule } from './http/http.module.js';
+
 @Module({
   imports: [
     MikroOrmModule.forRoot(config),
     PersistenceModule,
     ApplicationModule,
+    HttpApiModule,
 
     // TODO: ScheduleModule.forRoot() — task 14.1
     // TODO: SqsModule                — task 12.1
-    // TODO: HttpApiModule            — task 11.x
     // TODO: MetricsModule            — task 15.2
     // TODO: LoggerModule             — task 15.1
   ],
