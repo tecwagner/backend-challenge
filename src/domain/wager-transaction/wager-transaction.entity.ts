@@ -42,11 +42,13 @@ export interface WagerTransactionState {
   gameId: string;
   kind: WagerTransactionKind;
   money: Money;
-  referenceExternalTransactionId?: string;
+  referenceExternalTransactionId?: string | undefined;
   status: WagerTransactionStatus;
-  referenceTransactionId?: string;
-  failureCode?: FailureCode;
-  processedAt?: Date;
+  referenceTransactionId?: string | undefined;
+  failureCode?: FailureCode | undefined;
+  processedAt?: Date | undefined;
+  nextAttemptAt?: Date | undefined;
+  attempts?: number | undefined;
   createdAt: Date;
 }
 
@@ -95,6 +97,8 @@ export class WagerTransaction {
     private _referenceTransactionId?: string,
     private _failureCode?: FailureCode,
     private _processedAt?: Date,
+    private _nextAttemptAt?: Date,
+    private _attempts: number = 0,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -133,6 +137,11 @@ export class WagerTransaction {
       props.referenceExternalTransactionId,
       new Date(),
       WagerTransactionStatus.Pending,
+      undefined, // referenceTransactionId
+      undefined, // failureCode
+      undefined, // processedAt
+      undefined, // nextAttemptAt
+      0, // attempts
     );
   }
 
@@ -156,6 +165,8 @@ export class WagerTransaction {
       state.referenceTransactionId,
       state.failureCode,
       state.processedAt,
+      state.nextAttemptAt,
+      state.attempts ?? 0,
     );
   }
 
@@ -177,6 +188,14 @@ export class WagerTransaction {
 
   get processedAt(): Date | undefined {
     return this._processedAt;
+  }
+
+  get nextAttemptAt(): Date | undefined {
+    return this._nextAttemptAt;
+  }
+
+  get attempts(): number {
+    return this._attempts;
   }
 
   // -------------------------------------------------------------------------
@@ -205,6 +224,17 @@ export class WagerTransaction {
     this.assertNotTerminal('fail');
     this._status = WagerTransactionStatus.Failed;
     this._failureCode = code;
+  }
+
+  /**
+   * Incrementa tentativas e agenda próximo retry com backoff exponencial.
+   * Usado pelo worker de reprocessamento de PENDING_REFERENCE.
+   * Backoff: min(2^attempts * 1000ms, 300s)
+   */
+  scheduleRetry(now: Date): void {
+    this._attempts += 1;
+    const delayMs = Math.min(Math.pow(2, this._attempts) * 1_000, 300_000);
+    this._nextAttemptAt = new Date(now.getTime() + delayMs);
   }
 
   // -------------------------------------------------------------------------

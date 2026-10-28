@@ -76,6 +76,23 @@ Os eventos são gravados na tabela `outbox_messages` **dentro da mesma transaç�
 
 Isso garante: nenhum evento é perdido se o processo morrer após o commit, e nenhum evento é publicado antes do commit.
 
+## Hash canônico do payload (SHA-256)
+
+O `payloadHash` é o hex SHA-256 de `JSON.stringify` de um objeto canônico contendo **somente** os campos de negócio:
+
+`providerId`, `externalTransactionId`, `playerId`, `walletId`, `roundId`, `gameId`, `kind`, `money`, `referenceExternalTransactionId`.
+
+Regras:
+
+1. Header `Idempotency-Key`, `correlationId` e timestamps **não** entram no hash.
+2. Campos `undefined` são omitidos (ex.: BET sem referência).
+3. Em todo objeto aninhado (incluindo `money`), as chaves são ordenadas lexicograficamente antes do `JSON.stringify`.
+4. `money` entra como `{ "amount": "XX.XX", "currency": "ISO" }` — strings, nunca `number`.
+
+Isso torna o hash determinístico mesmo se o provedor reordenar as chaves do JSON.
+
+Implementação: `src/application/services/payload-hash.service.ts`.
+
 ## Idempotência
 
 A idempotency key (header `Idempotency-Key`, ou campo `idempotencyKey` na mensagem SQS) é a fonte da verdade. No primeiro recebimento, a transação é persistida com a key e um `payloadHash` (SHA-256 do JSON canônico com chaves ordenadas dos campos de negócio). No replay:

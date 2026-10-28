@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import config from './infrastructure/persistence/mikro-orm.config.js';
+import { PersistenceModule } from './infrastructure/persistence/persistence.module.js';
+import { ApplicationModule } from './application/application.module.js';
 
 /**
  * AppModule — módulo raiz da aplicação.
  *
- * Importa módulos de infraestrutura conforme forem implementados.
- * Os marcadores "TODO" indicam onde novos módulos devem ser registrados:
+ * Migrations são executadas manualmente via:
+ *   bun run migration:run
  *
+ * Os marcadores "TODO" indicam onde novos módulos devem ser registrados:
  *  - ScheduleModule     → task 14.1 (PendingReferenceWorker)
  *  - SqsModule          → task 12.x (SqsConsumerService)
  *  - HttpModule (HTTP)  → task 11.x (WalletController, WageringController, HealthController)
@@ -16,21 +19,9 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
  */
 @Module({
   imports: [
-    // ---------------------------------------------------------------------------
-    // Persistência — MikroORM
-    // Configuração carregada de src/infrastructure/persistence/mikro-orm.config.ts
-    // via `configPaths` ou variável de ambiente MIKRO_ORM_CLI_CONFIG.
-    // ---------------------------------------------------------------------------
-    MikroOrmModule.forRoot({
-      driver: PostgreSqlDriver,
-      clientUrl: process.env['DATABASE_URL'] ?? 'postgresql://wagering:wagering@localhost:5432/wagering',
-      entities: [],
-      autoLoadEntities: true,
-      discovery: { warnWhenNoEntities: false },
-      migrations: {
-        path: 'src/infrastructure/persistence/migrations',
-      },
-    }),
+    MikroOrmModule.forRoot(config),
+    PersistenceModule,
+    ApplicationModule,
 
     // TODO: ScheduleModule.forRoot() — task 14.1
     // TODO: SqsModule                — task 12.1

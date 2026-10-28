@@ -102,11 +102,13 @@ describe('Property 5: Wallet balance never goes negative', () => {
 
     for (let i = 0; i < N; i++) {
       const wallet = openWallet();
+      const credit = creditAmounts[i]!;
+      const debit = debitAmounts[i]!;
       // Credit first so we have some balance, then attempt debit
-      wallet.credit(centsToMoney(creditAmounts[i]));
+      wallet.credit(centsToMoney(credit));
 
       try {
-        wallet.debit(centsToMoney(debitAmounts[i]));
+        wallet.debit(centsToMoney(debit));
       } catch (err) {
         if (!(err instanceof InsufficientBalanceError)) throw err;
         // If debit was rejected, balance should still be >= 0
@@ -115,7 +117,7 @@ describe('Property 5: Wallet balance never goes negative', () => {
       if (wallet.balance.isNegative()) {
         throw new Error(
           `Property 5 violated: balance became negative (${wallet.balance.toJSON().amount}) ` +
-            `after credit(${creditAmounts[i]}) / debit(${debitAmounts[i]})`,
+            `after credit(${credit}) / debit(${debit})`,
         );
       }
     }
@@ -286,7 +288,7 @@ describe('Property 13: Ledger arithmetic is always balanced', () => {
 
     forAll(
       'isBalanced() === true for CREDIT',
-      balanceAmounts.map((b, i) => ({ balanceCents: b, moneyCents: moneyAmounts[i] })),
+      balanceAmounts.map((b, i) => ({ balanceCents: b, moneyCents: moneyAmounts[i]! })),
       ({ balanceCents, moneyCents }) => {
         const balanceBefore = centsToMoney(balanceCents);
         const money = centsToMoney(moneyCents);
@@ -312,11 +314,14 @@ describe('Property 13: Ledger arithmetic is always balanced', () => {
 
     forAll(
       'isBalanced() === true for DEBIT',
-      balanceAmounts.map((b, i) => ({
-        // ensure balanceBefore >= money so debit is valid
-        balanceCents: b + moneyAmounts[i],
-        moneyCents: moneyAmounts[i],
-      })),
+      balanceAmounts.map((b, i) => {
+        const moneyCents = moneyAmounts[i]!;
+        return {
+          // ensure balanceBefore >= money so debit is valid
+          balanceCents: b + moneyCents,
+          moneyCents,
+        };
+      }),
       ({ balanceCents, moneyCents }) => {
         const balanceBefore = centsToMoney(balanceCents);
         const money = centsToMoney(moneyCents);

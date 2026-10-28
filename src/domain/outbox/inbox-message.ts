@@ -11,7 +11,7 @@ export interface InboxMessageState {
   consumerName: string;
   payloadHash: string;
   receivedAt: Date;
-  processedAt?: Date;
+  processedAt?: Date | undefined;
 }
 
 /**
