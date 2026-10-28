@@ -95,6 +95,7 @@ export class WagerTransactionRepository implements WagerTransactionRepositoryPor
     } else {
       this.em.persist(this.em.create(WagerTransactionSchema, this.toOrm(tx)));
     }
+    await this.em.flush();
   }
 
   private toDomain(row: WagerTransactionOrmEntity): WagerTransaction {

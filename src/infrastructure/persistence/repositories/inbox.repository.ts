@@ -14,16 +14,19 @@ export class InboxRepository implements InboxRepositoryPort {
   ): Promise<{ message: InboxMessage; isDuplicate: boolean }> {
     const conn = this.em.getConnection();
 
-    // INSERT ON CONFLICT DO NOTHING — atômico, sem race condition entre instâncias.
+    // INSERT ON CONFLICT DO NOTHING RETURNING message_id — atômico, sem race condition entre instâncias.
     const result = await conn.execute(
       `INSERT INTO inbox_messages (message_id, consumer_name, payload_hash, received_at)
        VALUES (?, ?, ?, ?)
-       ON CONFLICT (consumer_name, message_id) DO NOTHING`,
+       ON CONFLICT (consumer_name, message_id) DO NOTHING
+       RETURNING message_id`,
       [message.messageId, message.consumerName, message.payloadHash, message.receivedAt],
     );
 
-    const inserted = (result as { rowCount?: number; affectedRows?: number })?.rowCount === 1
-      || (result as { rowCount?: number; affectedRows?: number })?.affectedRows === 1;
+    const inserted =
+      (Array.isArray(result) && result.length > 0) ||
+      (result as { rowCount?: number; affectedRows?: number })?.rowCount === 1 ||
+      (result as { rowCount?: number; affectedRows?: number })?.affectedRows === 1;
 
     if (inserted) {
       return { message, isDuplicate: false };

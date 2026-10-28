@@ -31,6 +31,7 @@ export class WalletRepository implements WalletRepositoryPort {
     } else {
       this.em.persist(this.em.create(WalletSchema, this.toOrm(wallet)));
     }
+    await this.em.flush();
   }
 
   private toDomain(row: WalletOrmEntity): Wallet {
