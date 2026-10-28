@@ -25,9 +25,6 @@ import { ProviderIdentityAdapter } from '../infrastructure/auth/provider-identit
     },
   ],
   exports: [
-    WalletController,
-    WageringController,
-    HealthController,
     AuthGuard,
     DomainExceptionFilter,
     PROVIDER_IDENTITY_PORT,

@@ -1,0 +1,725 @@
+# =============================================================================
+# REST CLIENT — WAGERING PROCESSOR API
+# =============================================================================
+# Este arquivo pode ser executado diretamente no VS Code utilizando a extensão:
+# "REST Client" (humao.rest-client).
+#
+# Dica:
+# Clique no texto "Send Request" que aparece acima de cada rota para executá-la.
+# As variáveis de requisição capturam respostas dinâmicas (ex: walletId, transactionId).
+# =============================================================================
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+@playerId = 0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1
+@providerId = prov-1
+
+# ID de carteira padrão para testes rápidos (substitua pelo gerado ou use a variável dinâmica)
+@sampleWalletId = 80eec9f0-1264-4475-b61b-3b2731fc523a
+
+
+# =============================================================================
+# 1. OBSERVABILIDADE & HEALTH CHECKS
+# =============================================================================
+
+###
+# @name healthLive
+# -----------------------------------------------------------------------------
+# GET /health/live — Liveness Probe
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Verifica se o processo HTTP da aplicação está ativo e respondendo.
+#   Usado pelo Kubernetes/Docker para reiniciar contêineres travados.
+#
+# Recebe:
+#   - Nada (sem headers obrigatórios nem corpo)
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "status": "ok",
+#       "uptime": 123.45
+#     }
+# -----------------------------------------------------------------------------
+GET {{baseUrl}}/health/live
+
+
+###
+# @name healthReady
+# -----------------------------------------------------------------------------
+# GET /health/ready — Readiness Probe
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Verifica se todas as dependências externas vitais (PostgreSQL e SQS)
+#   estão acessíveis e prontas para receber tráfego.
+#
+# Recebe:
+#   - Nada
+#
+# Retorna:
+#   - 200 OK (se saudável):
+#     {
+#       "status": "ok",
+#       "checks": {
+#         "postgres": "up",
+#         "sqs": "up"
+#       }
+#     }
+#   - 503 Service Unavailable (se PostgreSQL ou SQS estiver offline):
+#     {
+#       "status": "down",
+#       "checks": {
+#         "postgres": "down",
+#         "sqs": "up"
+#       }
+#     }
+# -----------------------------------------------------------------------------
+GET {{baseUrl}}/health/ready
+
+
+###
+# @name metrics
+# -----------------------------------------------------------------------------
+# GET /metrics — Prometheus Metrics Scraper
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Exporta métricas de negócio, concorrência, retentativas e latência no formato
+#   Prometheus para coleta (scraping).
+#
+# Recebe:
+#   - Nada
+#
+# Retorna:
+#   - 200 OK (Content-Type: text/plain)
+#     Inclui contadores e histogramas:
+#     - wagering_transactions_total{status,kind}
+#     - wagering_idempotent_replays_total
+#     - wagering_idempotency_conflicts_total
+#     - wagering_lock_conflicts_total
+#     - wagering_sqs_retries_total
+#     - wagering_dlq_messages_total
+#     - wagering_outbox_lag_seconds
+#     - wagering_transaction_duration_seconds
+#     - wagering_reconciliation_divergences_total
+#     - wagering_pending_reference_total
+# -----------------------------------------------------------------------------
+GET {{baseUrl}}/metrics
+
+
+# =============================================================================
+# 2. CARTEIRAS (WALLETS)
+# =============================================================================
+
+###
+# @name createWalletWithBalance
+# -----------------------------------------------------------------------------
+# POST /wallets — Criar carteira com saldo inicial
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Abre uma nova carteira para um jogador em uma moeda ISO-4217 (ex: BRL).
+#   Quando `initialBalance` for informado (> 0), cria atomicamente uma transação
+#   interna do tipo OPENING e um lançamento contábil CREDIT no ledger.
+#
+# Headers:
+#   - Content-Type: application/json (obrigatório)
+#   - X-Correlation-Id: UUID v4 (opcional, gerado se ausente)
+#
+# Recebe (Body):
+#   - playerId: string (UUID v4 obrigatório)
+#   - currency: string (código ISO-4217 com 3 caracteres maiúsculos, ex: "BRL")
+#   - initialBalance: object (opcional)
+#       - amount: string (decimal com exatamente 2 casas, ex: "1000.00")
+#       - currency: string (deve coincidir com a moeda da carteira)
+#
+# Retorna:
+#   - 201 Created:
+#     {
+#       "id": "80eec9f0-1264-4475-b61b-3b2731fc523a",
+#       "playerId": "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1",
+#       "currency": "BRL",
+#       "balance": {
+#         "amount": "1000.00",
+#         "currency": "BRL"
+#       },
+#       "version": 1
+#     }
+#   - 409 Conflict: Se já existir carteira para o par (playerId, currency).
+#   - 422 Unprocessable Entity: Se a moeda do initialBalance divergir da carteira.
+# -----------------------------------------------------------------------------
+POST {{baseUrl}}/wallets
+Content-Type: {{contentType}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "playerId": "{{$guid}}",
+  "currency": "BRL",
+  "initialBalance": {
+    "amount": "1000.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name createWalletZeroBalance
+# -----------------------------------------------------------------------------
+# POST /wallets — Criar carteira com saldo zero (sem initialBalance)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Abre uma carteira sem saldo inicial (saldo zero).
+#   Não gera transação OPENING nem lançamentos no ledger.
+#
+# Retorna:
+#   - 201 Created com balance: { "amount": "0.00", "currency": "BRL" }
+# -----------------------------------------------------------------------------
+POST {{baseUrl}}/wallets
+Content-Type: {{contentType}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "playerId": "{{$guid}}",
+  "currency": "BRL"
+}
+
+
+###
+# @name getWallet
+# -----------------------------------------------------------------------------
+# GET /wallets/:walletId — Consultar saldo e versão da carteira
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Retorna o estado atual da carteira: saldo consolidado, moeda e versão
+#   de concorrência otimista.
+#
+# Recebe (Path Param):
+#   - walletId: UUID v4 da carteira
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "id": "80eec9f0-1264-4475-b61b-3b2731fc523a",
+#       "playerId": "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1",
+#       "currency": "BRL",
+#       "balance": {
+#         "amount": "1000.00",
+#         "currency": "BRL"
+#       },
+#       "version": 1
+#     }
+#   - 404 Not Found: Se o walletId não existir.
+# -----------------------------------------------------------------------------
+@activeWalletId = {{createWalletWithBalance.response.body.id}}
+
+GET {{baseUrl}}/wallets/{{activeWalletId}}
+
+
+###
+# @name getWalletLedger
+# -----------------------------------------------------------------------------
+# GET /wallets/:walletId/ledger — Consultar extrato contábil (Ledger)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Retorna o histórico imutável de lançamentos de débito e crédito da carteira,
+#   ordenados cronologicamente (created_at ASC, id ASC), com paginação por cursor opaca.
+#
+# Recebe:
+#   - walletId: UUID v4 no caminho da URL
+#   - cursor: string base64url opcional (para carregar a próxima página)
+#   - limit: inteiro entre 1 e 100 (padrão: 50)
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "items": [
+#         {
+#           "id": "a4d45126-aae0-4a0c-891f-3c0572bd4805",
+#           "walletId": "80eec9f0-1264-4475-b61b-3b2731fc523a",
+#           "transactionId": "f492aedf-4318-4e35-bdb0-87e4065d33e5",
+#           "direction": "CREDIT",
+#           "money": { "amount": "1000.00", "currency": "BRL" },
+#           "balanceBefore": { "amount": "0.00", "currency": "BRL" },
+#           "balanceAfter": { "amount": "1000.00", "currency": "BRL" },
+#           "createdAt": "2026-10-28T18:16:23.087Z"
+#         }
+#       ],
+#       "nextCursor": "ZXlKaGJHY2lPaUpTVXpVe..." // ou null quando não houver mais páginas
+#     }
+# -----------------------------------------------------------------------------
+GET {{baseUrl}}/wallets/{{activeWalletId}}/ledger?limit=10
+
+
+###
+# @name reconcileWallet
+# -----------------------------------------------------------------------------
+# POST /wallets/:walletId/reconciliation — Reconciliação contábil do saldo
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Calcula a soma de todos os créditos menos todos os débitos no ledger e
+#   compara com o saldo atual persistido na tabela `wallets`.
+#   Garante a integridade financeira e incrementa métricas se houver divergência.
+#
+# Recebe:
+#   - walletId: UUID v4 no caminho da URL
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "consistent": true,
+#       "storedBalance": { "amount": "1000.00", "currency": "BRL" },
+#       "calculatedBalance": { "amount": "1000.00", "currency": "BRL" },
+#       "difference": { "amount": "0.00", "currency": "BRL" },
+#       "checkedEntries": 1
+#     }
+# -----------------------------------------------------------------------------
+POST {{baseUrl}}/wallets/{{activeWalletId}}/reconciliation
+
+
+# =============================================================================
+# 3. TRANSAÇÕES DE JOGO (WAGERING TRANSACTIONS)
+# =============================================================================
+
+###
+# @name betTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Aposta (BET)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Processa uma aposta de jogo debitando o saldo da carteira com lock pessimista
+#   (SELECT ... FOR UPDATE). Garante idempotência rigorosa via `Idempotency-Key`.
+#
+# Headers:
+#   - Idempotency-Key: string (obrigatório, 422 se ausente; ex: "provider:externalId")
+#   - Content-Type: application/json
+#   - X-Correlation-Id: UUID v4 (opcional)
+#
+# Recebe (Body):
+#   - providerId: string (identificador do provedor do jogo, ex: "prov-1")
+#   - externalTransactionId: string (ID da transação no provedor externo)
+#   - playerId: string (UUID v4 do jogador)
+#   - walletId: string (UUID v4 da carteira a ser debitada)
+#   - roundId: string (identificador da rodada do jogo)
+#   - gameId: string (identificador do jogo, ex: "fortune-tiger")
+#   - kind: "BET" (ou "WIN", "LOSS", "REFUND", "ROLLBACK")
+#   - money: object
+#       - amount: string ("100.00", positivo, duas casas decimais)
+#       - currency: string ("BRL", deve bater com a carteira)
+#
+# Retorna:
+#   - 200 OK (se processado com sucesso):
+#     {
+#       "transactionId": "070e5355-81a3-469a-8303-d96c9ff360b4",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "900.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@betExternalId = bet-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{betExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{betExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "BET",
+  "money": {
+    "amount": "100.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name idempotentReplay
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Replay Idempotente (mesma Idempotency-Key)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Demonstra o comportamento de idempotência: ao reenviar a mesma requisição
+#   (mesmo payload e mesma Idempotency-Key), a API responde com 200 OK e
+#   `idempotentReplay: true` sem reaplicar efeitos financeiros nem gerar novo ledger.
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "transactionId": "...",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "900.00", "currency": "BRL" },
+#       "idempotentReplay": true
+#     }
+# -----------------------------------------------------------------------------
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{betExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{betExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "BET",
+  "money": {
+    "amount": "100.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name winTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Prêmio (WIN)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Credita o saldo do jogador referente a uma premiação da rodada.
+#
+# Retorna:
+#   - 200 OK com status "PROCESSED" e saldo incrementado:
+#     {
+#       "transactionId": "...",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "1150.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@winExternalId = win-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{winExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{winExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "WIN",
+  "money": {
+    "amount": "250.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name lossTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Rodada Perdida (LOSS)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Registra o encerramento de rodada sem premiação.
+#   Não altera o saldo financeiro nem gera lançamento extra no ledger.
+#
+# Retorna:
+#   - 200 OK com status "PROCESSED" e saldo inalterado:
+#     {
+#       "transactionId": "...",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "1150.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@lossExternalId = loss-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{lossExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{lossExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "LOSS",
+  "money": {
+    "amount": "0.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name refundTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Estorno de Aposta (REFUND)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Estorna uma aposta (BET) previamente processada.
+#   Credita de volta o valor da aposta na carteira do jogador.
+#
+# Requisitos:
+#   - `referenceExternalTransactionId` deve ser o externalTransactionId da BET original.
+#   - O valor (money) deve ser idêntico ao valor da BET referenciada.
+#   - A BET original deve estar com status PROCESSED.
+#
+# Retorna:
+#   - 200 OK com status "PROCESSED" e saldo creditado de volta:
+#     {
+#       "transactionId": "...",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "1250.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@refundExternalId = refund-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{refundExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{refundExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "REFUND",
+  "money": {
+    "amount": "100.00",
+    "currency": "BRL"
+  },
+  "referenceExternalTransactionId": "{{betExternalId}}"
+}
+
+
+###
+# @name rollbackTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Cancelamento de Prêmio (ROLLBACK)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Cancela um prêmio (WIN) creditado indevidamente por erro do provedor.
+#   Debita o valor do WIN da carteira do jogador.
+#
+# Requisitos:
+#   - `referenceExternalTransactionId` deve ser o externalTransactionId do WIN original.
+#   - O jogador deve ter saldo suficiente para cobrir o débito do cancelamento.
+#
+# Retorna:
+#   - 200 OK com status "PROCESSED" e saldo debitado:
+#     {
+#       "transactionId": "...",
+#       "status": "PROCESSED",
+#       "balance": { "amount": "1000.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@rollbackExternalId = rollback-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{rollbackExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{rollbackExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "ROLLBACK",
+  "money": {
+    "amount": "250.00",
+    "currency": "BRL"
+  },
+  "referenceExternalTransactionId": "{{winExternalId}}"
+}
+
+
+###
+# @name pendingReferenceTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — REFUND Antecipado (PENDING_REFERENCE)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Quando um estorno (REFUND ou ROLLBACK) chega ANTES da transação original,
+#   a aplicação não rejeita de imediato: coloca em status `PENDING_REFERENCE`
+#   para reprocessamento assíncrono pelo worker periódco `PendingReferenceWorker`.
+#
+# Retorna:
+#   - 202 Accepted:
+#     {
+#       "transactionId": "...",
+#       "status": "PENDING_REFERENCE",
+#       "balance": { "amount": "1000.00", "currency": "BRL" },
+#       "idempotentReplay": false
+#     }
+# -----------------------------------------------------------------------------
+@pendingExternalId = pending-ref-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{pendingExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{pendingExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "REFUND",
+  "money": {
+    "amount": "50.00",
+    "currency": "BRL"
+  },
+  "referenceExternalTransactionId": "bet-inexistente-ou-atrasada-{{$timestamp}}"
+}
+
+
+###
+# @name insufficientFundsTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Saldo Insuficiente (REJECTED)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Tentativa de efetuar uma aposta com valor superior ao saldo disponível.
+#   A transação é registrada no banco como `REJECTED` para fins de auditoria,
+#   mas não movimenta saldos nem gera lançamentos financeiros no ledger.
+#
+# Retorna:
+#   - 422 Unprocessable Entity:
+#     {
+#       "transactionId": "...",
+#       "status": "REJECTED",
+#       "balance": { "amount": "1000.00", "currency": "BRL" },
+#       "idempotentReplay": false,
+#       "failureCode": "INSUFFICIENT_FUNDS"
+#     }
+# -----------------------------------------------------------------------------
+@insufficientExternalId = insufficient-{{$timestamp}}
+
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{insufficientExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{insufficientExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "BET",
+  "money": {
+    "amount": "9999999.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name idempotencyConflictTransaction
+# -----------------------------------------------------------------------------
+# POST /wagering/transactions — Conflito de Idempotência (Payload Divergente)
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Reenviar uma requisição com a MESMA `Idempotency-Key` de uma transação existente,
+#   mas com valor ou dados de negócio diferentes (violação do contrato de idempotência).
+#
+# Retorna:
+#   - 409 Conflict:
+#     {
+#       "statusCode": 409,
+#       "error": "Conflict",
+#       "message": "Idempotency key '...' already exists with a different payload",
+#       "timestamp": "2026-10-28T18:17:11.536Z",
+#       "path": "/wagering/transactions"
+#     }
+# -----------------------------------------------------------------------------
+POST {{baseUrl}}/wagering/transactions
+Content-Type: {{contentType}}
+Idempotency-Key: {{providerId}}:{{betExternalId}}
+X-Correlation-Id: {{$guid}}
+
+{
+  "providerId": "{{providerId}}",
+  "externalTransactionId": "{{betExternalId}}",
+  "playerId": "{{createWalletWithBalance.response.body.playerId}}",
+  "walletId": "{{activeWalletId}}",
+  "roundId": "round-{{$timestamp}}",
+  "gameId": "fortune-tiger",
+  "kind": "BET",
+  "money": {
+    "amount": "999.00",
+    "currency": "BRL"
+  }
+}
+
+
+###
+# @name getTransactionById
+# -----------------------------------------------------------------------------
+# GET /wagering/transactions/:transactionId — Consultar por UUID Interno
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Busca todos os detalhes de auditoria de uma transação pelo seu UUID interno.
+#
+# Recebe (Path Param):
+#   - transactionId: UUID v4 da transação
+#
+# Retorna:
+#   - 200 OK:
+#     {
+#       "id": "070e5355-81a3-469a-8303-d96c9ff360b4",
+#       "providerId": "prov-1",
+#       "externalTransactionId": "tx-bet-1",
+#       "idempotencyKey": "prov-1:tx-bet-1",
+#       "playerId": "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1",
+#       "walletId": "80eec9f0-1264-4475-b61b-3b2731fc523a",
+#       "roundId": "round-1",
+#       "gameId": "fortune-tiger",
+#       "kind": "BET",
+#       "money": { "amount": "100.00", "currency": "BRL" },
+#       "referenceExternalTransactionId": null,
+#       "referenceTransactionId": null,
+#       "status": "PROCESSED",
+#       "failureCode": null,
+#       "processedAt": "2026-10-28T18:17:11.520Z",
+#       "createdAt": "2026-10-28T18:17:11.520Z"
+#     }
+#   - 404 Not Found: Se o UUID não existir.
+# -----------------------------------------------------------------------------
+@activeTransactionId = {{betTransaction.response.body.transactionId}}
+
+GET {{baseUrl}}/wagering/transactions/{{activeTransactionId}}
+
+
+###
+# @name getTransactionByExternalId
+# -----------------------------------------------------------------------------
+# GET /providers/:providerId/wagering/transactions/:externalTransactionId
+# -----------------------------------------------------------------------------
+# Finalidade:
+#   Permite ao provedor externo consultar o status de processamento da sua transação
+#   utilizando o seu próprio identificador (`externalTransactionId`).
+#
+# Recebe (Path Params):
+#   - providerId: ID do provedor (ex: "prov-1")
+#   - externalTransactionId: ID externo informado na criação (ex: "tx-bet-1")
+#
+# Retorna:
+#   - 200 OK com o objeto completo `WagerTransactionDetailsDto`
+#   - 404 Not Found: Se não encontrada.
+# -----------------------------------------------------------------------------
+GET {{baseUrl}}/providers/{{providerId}}/wagering/transactions/{{betExternalId}}
