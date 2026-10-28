@@ -6,6 +6,8 @@ import {
   type WalletLedgerEntryOrmEntity,
 } from '../entities/wallet-ledger-entry.orm-entity.js';
 
+import { decodeLedgerCursor, encodeLedgerCursor } from '../../../http/pagination/ledger-cursor.js';
+
 export class LedgerRepository implements LedgerRepositoryPort {
   constructor(private readonly em: EntityManager) {}
 
@@ -30,18 +32,16 @@ export class LedgerRepository implements LedgerRepositoryPort {
     cursor: string | undefined,
     limit: number,
   ): Promise<LedgerPage> {
-    // Cursor encoda o ISO string do createdAt da última linha vista (opaco para o caller).
-    const cursorDate = cursor
-      ? new Date(Buffer.from(cursor, 'base64url').toString())
-      : undefined;
+    const decoded = cursor ? decodeLedgerCursor(cursor) : null;
 
     const conn = this.em.getConnection();
     const params: unknown[] = [walletId];
     let cursorClause = '';
 
-    if (cursorDate) {
-      cursorClause = 'AND created_at < ?';
-      params.push(cursorDate);
+    if (decoded) {
+      cursorClause = 'AND (created_at > ? OR (created_at = ? AND id > ?))';
+      const cursorDate = new Date(decoded.createdAt);
+      params.push(cursorDate, cursorDate, decoded.id);
     }
 
     params.push(limit + 1);
@@ -53,7 +53,7 @@ export class LedgerRepository implements LedgerRepositoryPort {
               created_at AS "createdAt"
        FROM wallet_ledger_entries
        WHERE wallet_id = ? ${cursorClause}
-       ORDER BY created_at DESC
+       ORDER BY created_at ASC, id ASC
        LIMIT ?`,
       params,
     );
@@ -63,7 +63,10 @@ export class LedgerRepository implements LedgerRepositoryPort {
     const lastRow = page[page.length - 1];
     const nextCursor =
       hasMore && lastRow
-        ? Buffer.from(new Date(lastRow.createdAt).toISOString()).toString('base64url')
+        ? encodeLedgerCursor({
+            id: lastRow.id,
+            createdAt: new Date(lastRow.createdAt).toISOString(),
+          })
         : undefined;
 
     return { entries: page.map((r: WalletLedgerEntryOrmEntity) => this.toDomain(r)), nextCursor };

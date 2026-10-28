@@ -138,9 +138,39 @@ export class InMemoryLedgerRepository implements LedgerRepositoryPort {
     this.entries.push(entry);
   }
 
-  async findByWalletId(walletId: string, _cursor: string | undefined, limit: number): Promise<LedgerPage> {
-    const page = this.entries.filter((e) => e.walletId === walletId).slice(0, limit);
-    return { entries: page, nextCursor: undefined };
+  async findByWalletId(walletId: string, cursor: string | undefined, limit: number): Promise<LedgerPage> {
+    const { decodeLedgerCursor, encodeLedgerCursor } = await import('../../../http/pagination/ledger-cursor.js');
+    const decoded = cursor ? decodeLedgerCursor(cursor) : null;
+    const sorted = this.entries
+      .filter((e) => e.walletId === walletId)
+      .sort((a, b) => {
+        const diff = a.createdAt.getTime() - b.createdAt.getTime();
+        if (diff !== 0) return diff;
+        return a.id.localeCompare(b.id);
+      });
+
+    const filtered = decoded
+      ? sorted.filter((e) => {
+          const eTime = e.createdAt.getTime();
+          const cTime = new Date(decoded.createdAt).getTime();
+          if (eTime > cTime) return true;
+          if (eTime === cTime && e.id > decoded.id) return true;
+          return false;
+        })
+      : sorted;
+
+    const hasMore = filtered.length > limit;
+    const page = hasMore ? filtered.slice(0, limit) : filtered;
+    const last = page[page.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeLedgerCursor({
+            id: last.id,
+            createdAt: last.createdAt.toISOString(),
+          })
+        : undefined;
+
+    return { entries: page, nextCursor };
   }
 
   async sumByWalletId(
