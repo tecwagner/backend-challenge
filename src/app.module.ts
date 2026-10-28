@@ -18,6 +18,7 @@ import { ApplicationModule } from './application/application.module.js';
  *  - LoggerModule       → task 15.1 (StructuredLogger)
  */
 import { HttpApiModule } from './http/http.module.js';
+import { SqsModule } from './infrastructure/messaging/sqs.module.js';
 
 @Module({
   imports: [
@@ -25,9 +26,9 @@ import { HttpApiModule } from './http/http.module.js';
     PersistenceModule,
     ApplicationModule,
     HttpApiModule,
+    SqsModule,
 
     // TODO: ScheduleModule.forRoot() — task 14.1
-    // TODO: SqsModule                — task 12.1
     // TODO: MetricsModule            — task 15.2
     // TODO: LoggerModule             — task 15.1
   ],

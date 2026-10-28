@@ -131,8 +131,8 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 20: Payload de IntegrationEvent é JSON puro**
     - **Validates: Requirements 11.2**
 
-- [ ] 6. Schema do banco e migrations
-  - [ ] 6.1 Criar migration inicial com tabelas e constraints
+- [X] 6. Schema do banco e migrations
+  - [X] 6.1 Criar migration inicial com tabelas e constraints
     - Criar `migrations/Migration001_initial_schema.ts` com DDL completo
     - Tabela `wallets`: `CHECK (balance_amount >= 0)`, `UNIQUE (player_id, currency)`
     - Tabela `wager_transactions`: `UNIQUE (idempotency_key)`, `UNIQUE (provider_id, external_transaction_id)`, CHECK de status e kind
@@ -141,14 +141,14 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Tabela `outbox_messages` com índice parcial `WHERE published_at IS NULL`
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-  - [ ] 6.2 Criar migration de índices de performance
+  - [X] 6.2 Criar migration de índices de performance
     - Criar `migrations/Migration002_indexes.ts`
     - Índice parcial em `wager_transactions (status, next_attempt_at) WHERE status = 'PENDING_REFERENCE'`
     - Índices em `wallet_ledger_entries (wallet_id, created_at DESC)`
     - _Requirements: 14.7, 8.2_
 
-- [ ] 7. ORM Entities e Repositórios
-  - [ ] 7.1 Criar MikroORM entities (`@Entity` decorators)
+- [X] 7. ORM Entities e Repositórios
+  - [X] 7.1 Criar MikroORM entities (`@Entity` decorators)
     - Criar `src/infrastructure/persistence/entities/wallet.orm-entity.ts`
     - Criar `src/infrastructure/persistence/entities/wager-transaction.orm-entity.ts`
     - Criar `src/infrastructure/persistence/entities/wallet-ledger-entry.orm-entity.ts`
@@ -157,7 +157,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Configurar `mikro-orm.config.ts` com `NUMERIC(19,4)` para campos monetários
     - _Requirements: 14.1–14.7_
 
-  - [ ] 7.2 Implementar portas de repositório (interfaces)
+  - [X] 7.2 Implementar portas de repositório (interfaces)
     - Criar `src/application/ports/wallet.repository.port.ts` com `findByIdForUpdate`, `save`
     - Criar `src/application/ports/wager-transaction.repository.port.ts`
     - Criar `src/application/ports/ledger.repository.port.ts` (sem `delete`)
@@ -166,28 +166,28 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/application/ports/unit-of-work.port.ts` com `transactional<T>`
     - _Requirements: 6.3, 14.6_
 
-  - [ ] 7.3 Implementar repositórios concretos com MikroORM
+  - [X] 7.3 Implementar repositórios concretos com MikroORM
     - Criar `src/infrastructure/persistence/repositories/wallet.repository.ts`
     - Implementar `findByIdForUpdate` usando `LockMode.PESSIMISTIC_WRITE`
     - Criar repositórios para `WagerTransaction`, `Ledger`, `Outbox`, `Inbox`
     - Criar `src/infrastructure/persistence/unit-of-work.adapter.ts` wrappando `EntityManager.transactional()`
     - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 8. Use Cases — CreateWallet e ProcessWagerTransaction
-  - [ ] 8.1 Implementar `PayloadHashService` e `IdempotencyService`
+- [x] 8. Use Cases — CreateWallet e ProcessWagerTransaction
+  - [x] 8.1 Implementar `PayloadHashService` e `IdempotencyService`
     - Criar `src/application/services/payload-hash.service.ts` com SHA-256 de JSON canônico (chaves ordenadas, campos de negócio apenas)
     - Criar `src/application/services/idempotency.service.ts` checando `idempotencyKey` + `payloadHash`
     - Documentar algoritmo em `ARCHITECTURE.md`
     - _Requirements: 3.3, 4.1, 4.2, 4.5_
 
-  - [ ] 8.2 Implementar `CreateWalletUseCase`
+  - [x] 8.2 Implementar `CreateWalletUseCase`
     - Criar `src/application/use-cases/create-wallet/create-wallet.use-case.ts`
     - Abrir Wallet com `Wallet.open()`, gerar `WagerTransaction` kind `OPENING` se `initialBalance > 0`
     - Gerar `WalletLedgerEntry` CREDIT correspondente na mesma transação SQL
     - Persistir via `UnitOfWorkPort.transactional()`
     - _Requirements: 2.1, 2.2, 2.3, 6.1_
 
-  - [ ] 8.3 Implementar `ProcessWagerTransactionUseCase`
+  - [x] 8.3 Implementar `ProcessWagerTransactionUseCase`
     - Criar `src/application/use-cases/process-wager-transaction/process-wager-transaction.use-case.ts`
     - Verificar idempotência (replay ou conflito) antes de adquirir lock
     - Adquirir `SELECT FOR UPDATE` na Wallet via `findByIdForUpdate`
@@ -197,7 +197,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Persistir tudo atomicamente via `UnitOfWorkPort.transactional()`
     - _Requirements: 3.1, 4.1, 4.2, 4.5, 5.1–5.11, 6.1, 7.1, 9.1, 10.1, 10.6_
 
-  - [ ]* 8.4 Escrever testes de propriedade para idempotência e concorrência (Properties 10, 12, 15)
+  - [x]* 8.4 Escrever testes de propriedade para idempotência e concorrência (Properties 10, 12, 15)
     - **Property 10: Idempotência persistente — replay retorna resposta original**
     - **Validates: Requirements 4.1**
     - **Property 12: Transações REJECTED não alteram saldo nem geram ledger**
@@ -205,12 +205,12 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 15: Cenário de concorrência — exatamente um PROCESSED**
     - **Validates: Requirements 7.3**
 
-  - [ ]* 8.5 Escrever testes unitários para `ProcessWagerTransactionUseCase`
+  - [x]* 8.5 Escrever testes unitários para `ProcessWagerTransactionUseCase`
     - Cobrir: BET/WIN/LOSS/REFUND/ROLLBACK, idempotência, replay, conflito de payload
     - _Requirements: 4.1, 4.2, 5.1–5.11, 15.1_
 
-- [ ] 9. Use Cases — ReconcileWallet e ReprocessPendingReferences
-  - [ ] 9.1 Implementar `ReconcileWalletUseCase`
+- [x] 9. Use Cases — ReconcileWallet e ReprocessPendingReferences
+  - [x] 9.1 Implementar `ReconcileWalletUseCase`
     - Criar `src/application/use-cases/reconcile-wallet/reconcile-wallet.use-case.ts`
     - Recalcular saldo somando todas as `WalletLedgerEntries` do ledger a partir de zero
     - Comparar com `wallet.balance` materializado
@@ -218,7 +218,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Retornar `{ consistent, storedBalance, calculatedBalance, difference, checkedEntries }`
     - _Requirements: 6.4, 6.5, 6.6_
 
-  - [ ] 9.2 Implementar `ReprocessPendingReferencesUseCase`
+  - [x] 9.2 Implementar `ReprocessPendingReferencesUseCase`
     - Criar `src/application/use-cases/reprocess-pending-references/reprocess-pending-references.use-case.ts`
     - Buscar transações `PENDING_REFERENCE` com `nextAttemptAt <= NOW`
     - Tentar resolver referência por `(providerId, referenceExternalTransactionId)`
@@ -226,11 +226,11 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Se não resolvida após limite (5 tentativas): `reject` com `FailureCode.REFERENCE_EXPIRED` + OutboxMessage
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ]* 9.3 Escrever testes de propriedade para reprocessamento (Property 17)
+  - [x]* 9.3 Escrever testes de propriedade para reprocessamento (Property 17)
     - **Property 17: Reprocessamento de PENDING_REFERENCE é idempotente**
     - **Validates: Requirements 8.5**
 
-- [ ] 10. Checkpoint Dia 1 — Verificação do core
+- [x] 10. Checkpoint Dia 1 — Verificação do core
   - Garantir que todos os testes unitários e de propriedade do domínio passam: `bun run test`
   - Garantir que as migrations rodam sem erro com `bun run migration:run` (requer Docker)
   - Perguntar ao usuário se há dúvidas antes de avançar para Dia 2.
@@ -239,20 +239,20 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
 
 ### Dia 2 — Mensageria, Concorrência e API HTTP
 
-- [ ] 11. API HTTP — Controllers e DTOs
-  - [ ] 11.1 Implementar `WalletController` e DTOs
+- [x] 11. API HTTP — Controllers e DTOs
+  - [x] 11.1 Implementar `WalletController` e DTOs
     - Criar `src/http/controllers/wallet.controller.ts` com rotas: `POST /wallets`, `GET /wallets/:walletId`, `GET /wallets/:walletId/ledger`, `POST /wallets/:walletId/reconciliation`
     - Criar request/response DTOs com `class-validator` para `POST /wallets`
     - Implementar cursor opaco e estável para paginação do ledger (base64 de `{ id, createdAt }`)
     - _Requirements: 2.1, 2.2, 2.3, 2.6, 2.7, 6.4_
 
-  - [ ] 11.2 Implementar `WageringController` e DTOs
+  - [x] 11.2 Implementar `WageringController` e DTOs
     - Criar `src/http/controllers/wagering.controller.ts` com rotas: `POST /wagering/transactions`, `GET /wagering/transactions/:transactionId`, `GET /providers/:providerId/wagering/transactions/:externalTransactionId`
     - Extrair `Idempotency-Key` header (422 se ausente)
     - Mapear `correlationId` do contexto de requisição
     - _Requirements: 3.1, 3.2, 3.7, 3.8, 4.1, 4.2_
 
-  - [ ] 11.3 Implementar `HealthController`, `AuthGuard` no-op e `DomainExceptionFilter`
+  - [x] 11.3 Implementar `HealthController`, `AuthGuard` no-op e `DomainExceptionFilter`
     - Criar `src/http/controllers/health.controller.ts` com `GET /health/live` e `GET /health/ready`
     - `GET /health/ready` verifica conectividade PostgreSQL e SQS
     - Criar `src/http/guards/auth.guard.ts` (no-op, permite todas as requisições)
@@ -260,14 +260,14 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Criar `src/http/filters/domain-exception.filter.ts` mapeando erros de domínio para HTTP status codes conforme tabela do design
     - _Requirements: 12.4, 12.5, 13.1, 13.2, 13.4_
 
-- [ ] 12. SQS Consumer — Inbox persistente e graceful shutdown
-  - [ ] 12.1 Implementar `SqsClient` wrapper
+- [x] 12. SQS Consumer — Inbox persistente e graceful shutdown
+  - [x] 12.1 Implementar `SqsClient` wrapper
     - Criar `src/infrastructure/messaging/sqs.client.ts` wrappando `@aws-sdk/client-sqs`
     - Métodos: `receiveMessages`, `deleteMessage`, `changeMessageVisibility`, `sendMessage`
     - Configurar long-polling (20s), max 10 mensagens por receive
     - _Requirements: 9.1, 9.3_
 
-  - [ ] 12.2 Implementar `SqsConsumerService` com inbox e graceful shutdown
+  - [x] 12.2 Implementar `SqsConsumerService` com inbox e graceful shutdown
     - Criar `src/infrastructure/messaging/sqs-consumer.service.ts`
     - Loop de long-polling com `ReceiveMessage`
     - Por mensagem: `INSERT inbox_message ON CONFLICT DO NOTHING` na mesma transação SQL do processamento
