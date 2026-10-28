@@ -40,6 +40,7 @@ export enum FailureCode {
 
   // Reference
   ReferenceNotFound = 'REFERENCE_NOT_FOUND',
+  ReferenceExpired = 'REFERENCE_EXPIRED',
   ReferenceAlreadyReversed = 'REFERENCE_ALREADY_REVERSED',
   ReferenceInvalidKind = 'REFERENCE_INVALID_KIND',
   ReferenceAmountMismatch = 'REFERENCE_AMOUNT_MISMATCH',

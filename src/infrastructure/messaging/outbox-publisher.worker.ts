@@ -37,8 +37,8 @@ export class OutboxPublisherWorker implements OnModuleInit, OnApplicationShutdow
 
   private isRunning = false;
   private isShuttingDown = false;
-  private loopPromise?: Promise<void>;
-  private currentPollTask?: Promise<number>;
+  private loopPromise?: Promise<void> | undefined;
+  private currentPollTask?: Promise<number> | undefined;
 
   constructor(
     private readonly sqsClient: SqsClient,

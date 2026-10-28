@@ -45,7 +45,7 @@ export class SqsConsumerService implements OnModuleInit, OnApplicationShutdown {
   private isRunning = false;
   private isShuttingDown = false;
   private readonly inFlight = new Set<Promise<void>>();
-  private loopPromise?: Promise<void>;
+  private loopPromise?: Promise<void> | undefined;
 
   constructor(
     private readonly sqsClient: SqsClient,
