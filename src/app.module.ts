@@ -19,6 +19,7 @@ import { ApplicationModule } from './application/application.module.js';
  */
 import { HttpApiModule } from './http/http.module.js';
 import { SqsModule } from './infrastructure/messaging/sqs.module.js';
+import { WorkersModule } from './infrastructure/workers/workers.module.js';
 
 @Module({
   imports: [
@@ -27,8 +28,8 @@ import { SqsModule } from './infrastructure/messaging/sqs.module.js';
     ApplicationModule,
     HttpApiModule,
     SqsModule,
+    WorkersModule,
 
-    // TODO: ScheduleModule.forRoot() — task 14.1
     // TODO: MetricsModule            — task 15.2
     // TODO: LoggerModule             — task 15.1
   ],

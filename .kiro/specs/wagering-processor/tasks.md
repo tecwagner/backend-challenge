@@ -289,8 +289,8 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Max attempts configurável (`OUTBOX_MAX_ATTEMPTS`, padrão 10)
     - _Requirements: 10.3, 10.4, 10.5, 10.6, 10.7_
 
-- [ ] 14. Pending Reference Worker
-  - [ ] 14.1 Implementar `PendingReferenceWorker`
+- [x] 14. Pending Reference Worker
+  - [x] 14.1 Implementar `PendingReferenceWorker`
     - Criar `src/infrastructure/workers/pending-reference.worker.ts`
     - Cron configurável (`PENDING_REF_CRON`, padrão a cada 30s) via `@nestjs/schedule`
     - Delegar para `ReprocessPendingReferencesUseCase`
