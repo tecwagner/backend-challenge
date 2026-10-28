@@ -278,8 +278,8 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Reutilizar `ProcessWagerTransactionUseCase`
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8_
 
-- [ ] 13. Outbox Worker — SKIP LOCKED e backoff
-  - [ ] 13.1 Implementar `OutboxPublisherWorker`
+- [x] 13. Outbox Worker — SKIP LOCKED e backoff
+  - [x] 13.1 Implementar `OutboxPublisherWorker`
     - Criar `src/infrastructure/messaging/outbox-publisher.worker.ts`
     - Loop com intervalo configurável (`OUTBOX_POLL_INTERVAL_MS`, padrão 1s)
     - `SELECT * FROM outbox_messages WHERE published_at IS NULL AND next_attempt_at <= NOW() FOR UPDATE SKIP LOCKED LIMIT 10`
