@@ -8,12 +8,12 @@
     "dev": "bun run --watch src/main.ts",
     "build": "bun build src/main.ts --outdir dist --target bun --packages external",
     "start": "bun run dist/main.js",
-    "test": "bun test --reporter=verbose",
-    "test:integration": "bun test --reporter=verbose test/integration",
-    "test:concurrency": "bun test --reporter=verbose test/concurrency",
-    "migration:run": "bun run src/infrastructure/persistence/mikro-orm.cli.ts migration:up",
-    "migration:status": "bunx mikro-orm-esm migration:status --config src/infrastructure/persistence/mikro-orm.cli.ts",
-    "migration:down":   "bunx mikro-orm-esm migration:down --config src/infrastructure/persistence/mikro-orm.cli.ts"
+    "test": "bun test",
+    "test:integration": "bun test test/integration",
+    "test:concurrency": "bun test test/concurrency",
+    "migration:run": "bun src/infrastructure/persistence/migrate.ts up",
+    "migration:down": "bun src/infrastructure/persistence/migrate.ts down",
+    "migration:status": "bun src/infrastructure/persistence/migrate.ts status"
 
   },
   "dependencies": {

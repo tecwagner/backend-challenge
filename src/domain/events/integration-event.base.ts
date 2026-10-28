@@ -14,7 +14,7 @@ export interface IntegrationEventProps<T> {
   data: T;
 }
 
-export interface IntegrationEventJSON<T> {
+export type IntegrationEventJSON<T> = {
   eventId: string;
   eventType: string;
   version: number;
@@ -23,7 +23,7 @@ export interface IntegrationEventJSON<T> {
   causationId?: string;
   occurredAt: string; // ISO-8601
   data: T;
-}
+};
 
 /**
  * Abstract base for all integration events written to the outbox.

@@ -16,8 +16,8 @@ export interface OutboxMessageState {
   payload: Readonly<Record<string, unknown>>;
   occurredAt: Date;
   attempts: number;
-  nextAttemptAt?: Date;
-  publishedAt?: Date;
+  nextAttemptAt?: Date | undefined;
+  publishedAt?: Date | undefined;
 }
 
 const MAX_BACKOFF_MS = 300_000; // 300 s
