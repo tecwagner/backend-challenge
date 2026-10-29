@@ -1,0 +1,128 @@
+# =============================================================================
+# docker-compose.yml — Wagering Processor (desenvolvimento local)
+#
+# Serviços:
+#   postgres   — PostgreSQL 16 Alpine
+#   localstack — LocalStack 3 simulando AWS SQS
+#   app        — Aplicação NestJS/Bun (aguarda postgres e localstack)
+#
+# Uso:
+#   docker compose up --build
+# =============================================================================
+
+name: wagering-processor
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: wagering-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: wagering
+      POSTGRES_PASSWORD: wagering
+      POSTGRES_DB: wagering
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wagering -d wagering"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - wagering-net
+
+  # ---------------------------------------------------------------------------
+  # LocalStack 3 — emula AWS SQS localmente
+  # ---------------------------------------------------------------------------
+  localstack:
+    image: localstack/localstack:3
+    container_name: wagering-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs
+      DEBUG: "1"
+      PERSISTENCE: "1"
+      # Pré-criação de filas via script de init
+      LOCALSTACK_VOLUME_DIR: /var/lib/localstack
+    volumes:
+      - localstack-data:/var/lib/localstack
+      # Script executado automaticamente pelo LocalStack na inicialização
+      - ./scripts/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"sqs\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    networks:
+      - wagering-net
+
+  # ---------------------------------------------------------------------------
+  # Aplicação — NestJS + Bun
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wagering-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      LOG_LEVEL: info
+
+      # Banco de dados
+      DATABASE_URL: postgresql://wagering:wagering@postgres:5432/wagering
+      DB_LOCK_TIMEOUT_MS: "5000"
+      DB_STATEMENT_TIMEOUT_MS: "30000"
+
+      # AWS / LocalStack
+      AWS_ENDPOINT: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+
+      # Filas SQS
+      QUEUE_URL: http://localstack:4566/000000000000/wager-transactions.fifo
+      INTEGRATION_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/integration-events.fifo
+      DLQ_URL: http://localstack:4566/000000000000/wager-transactions-dlq.fifo
+
+      # Workers
+      OUTBOX_POLL_INTERVAL_MS: "1000"
+      OUTBOX_BATCH_SIZE: "10"
+      OUTBOX_MAX_ATTEMPTS: "10"
+      PENDING_REF_CRON: "*/30 * * * * *"
+      PENDING_REF_MAX_ATTEMPTS: "5"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    networks:
+      - wagering-net
+
+# ---------------------------------------------------------------------------
+# Volumes nomeados (dados persistidos entre reinicializações)
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-data:
+    driver: local
+  localstack-data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Rede isolada para os serviços
+# ---------------------------------------------------------------------------
+networks:
+  wagering-net:
+    driver: bridge
