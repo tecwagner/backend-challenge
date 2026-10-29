@@ -8,11 +8,20 @@ O MikroORM foi escolhido em detrimento do TypeORM por três razões diretamente 
 2. **`EntityManager.transactional()` + `LockMode`** — o pessimistic locking (`LockMode.PESSIMISTIC_WRITE`) é uma API de primeira classe, não um contorno via query raw.
 3. **`fork()` explícito** — cada worker concorrente faz fork do seu próprio `EntityManager`, evitando contaminação cruzada do Identity Map entre requisições concorrentes.
 
-## Mapeamento do Money
+## Precisão Monetária — decimal.js e Mapeamento do Money
 
-`Money` é persistido em duas colunas: `amount NUMERIC(19,4)` e `currency CHAR(3)`. A entidade ORM armazena ambos como `string` e reidrata via `Money.from({ amount, currency })`. Nenhum tipo monetário do ORM é utilizado; a classe de domínio é dona de toda a aritmética.
+O uso do tipo primitivo `number` do JavaScript (padrão IEEE-754 de ponto flutuante de precisão dupla de 64 bits) é estritamente proibido em qualquer ponto do sistema financeiro. Operações como `0.1 + 0.2 === 0.30000000000000004` introduziriam erros cumulativos inaceitáveis em saldos e lançamentos contábeis.
 
-`NUMERIC(19,4)` oferece 15 dígitos inteiros e 4 casas decimais. O domínio impõe 2 casas decimais na fronteira; os 2 dígitos extras no tipo do banco são uma margem de segurança para requisitos futuros de precisão sem necessidade de migration.
+A biblioteca **`decimal.js`** foi escolhida como motor de precisão monetária pelas seguintes razões:
+1. **Aritmética decimal de precisão arbitrária**: Cálculos de soma, subtração, comparação e negação são executados em base 10 sem perdas ou aproximações binárias.
+2. **Modo de arredondamento determinístico**: Suporta arredondamento bancário (`ROUND_HALF_EVEN`), eliminando viés estatístico de arredondamento.
+3. **Imutabilidade e Encapsulamento**: O Value Object `Money` encapsula a instância interna do `Decimal`, garantindo que todo método (`add`, `subtract`, `negate`) retorne sempre uma nova instância imutável.
+4. **Proteção em Três Camadas**:
+   - **Camada de Domínio / Memória**: `decimal.js` via Value Object `Money`.
+   - **Camada de Banco de Dados**: Colunas `balance_amount` e `money_amount` tipadas como `NUMERIC(19,4)` no PostgreSQL, oferecendo até 15 dígitos inteiros e 4 casas decimais para precisão contábil.
+   - **Camada de Transporte / Contratos**: Serialização estrita como string decimal formatada com exatamente 2 casas (ex: `"100.00"`) nos DTOs HTTP e envelopes SQS, prevenindo que clients JSON desserializem valores como números de ponto flutuante.
+
+A entidade ORM armazena os valores como `string` e os reidrata via `Money.from({ amount, currency })`. Nenhum tipo monetário mágico do ORM é utilizado.
 
 ## Estratégia de concorrência
 
@@ -103,3 +112,25 @@ A idempotency key (header `Idempotency-Key`, ou campo `idempotencyKey` na mensag
 A constraint `UNIQUE (idempotency_key)` na tabela `wager_transactions` é a guarda no nível do banco; as verificações na camada de aplicação são um caminho rápido, não a garantia.
 
 A deduplicação do inbox SQS usa uma tabela separada `inbox_messages` com `UNIQUE (consumer_name, message_id)`, impedindo que a mesma mensagem SQS seja processada duas vezes mesmo sob reentrega.
+
+## Limitações Conhecidas e Trade-offs Aceitos
+
+1. **Contenção de Lock por Carteira ("Hot Wallet") vs. Throughput**:
+   - **Trade-off**: Disparar centenas de requisições concorrentes sobre a mesma carteira serializa a execução através do row lock `SELECT … FOR UPDATE`. Requisições que excederem o timeout configurado (`DB_LOCK_TIMEOUT_MS=5000`) recebem `HTTP 503 Service Unavailable`.
+   - **Decisão**: A integridade contábil e a prevenção absoluta de saldo negativo superam a vazão irrestrita por carteira. O isolamento em nível de linha permite que milhares de carteiras distintas operem em paralelo sem contenção mútua.
+
+2. **Reversões Parciais Fora do Escopo**:
+   - **Trade-off**: Operações de `REFUND` e `ROLLBACK` exigem correspondência exata do valor (`money_amount`) em relação à transação referenciada. Se o valor diferir, a transação é rejeitada com `REFERENCE_AMOUNT_MISMATCH`.
+   - **Decisão**: Evita a complexidade de gerenciar saldos residuais parciais de apostas e estornos fracionados no escopo deste desafio, mantendo a auditabilidade linear 1:1 entre estorno e aposta original.
+
+3. **Latência do Polling da Outbox vs. CDC (Change Data Capture)**:
+   - **Trade-off**: O `OutboxPublisherWorker` opera via polling periódico com `SKIP LOCKED` a cada `1.000 ms`, introduzindo uma latência média de ~500 ms entre o commit no banco e a entrega na fila SQS.
+   - **Decisão**: Polling periódico com `SKIP LOCKED` oferece simplicidade operacional, robustez e distribuição nativa de carga entre múltiplas instâncias sem a complexidade de manter pipelines externos como Debezium/Kafka ou conexões dedicadas `LISTEN/NOTIFY` do PostgreSQL.
+
+4. **Retenção da Tabela de Outbox**:
+   - **Trade-off**: Registros na tabela `outbox_messages` permanecem após a publicação (`published_at IS NOT NULL`) para fins de auditoria, aumentando o volume de dados ao longo do tempo.
+   - **Decisão**: Para ambientes de produção com milhões de transações diárias, a recomendação é implementar particionamento de tabela por mês (`RANGE (created_at)`) e uma rotina de arquivamento (cold storage) para registros publicados há mais de 30 dias.
+
+5. **Autenticação Desacoplada com No-op Guard**:
+   - **Trade-off**: O serviço não valida assinaturas criptográficas de tokens JWT na camada de transporte HTTP por padrão.
+   - **Decisão**: Conforme previsto na Seção 2 do desafio, o foco foi concentrado na correção financeira e concorrência distribuída. As interfaces `AuthGuard` e `ProviderIdentityPort` foram desenhadas para plugar diretamente um Identity Provider OIDC (como Keycloak ou Zitadel) sem qualquer refatoração no domínio.
