@@ -38,14 +38,17 @@ export class InboxRepository implements InboxRepositoryPort {
       consumerName: message.consumerName,
     });
 
-    const row = existing!;
+    if (!existing) {
+      return { message, isDuplicate: true };
+    }
+
     return {
       message: InboxMessage.rehydrate({
-        messageId: row.messageId,
-        consumerName: row.consumerName,
-        payloadHash: row.payloadHash,
-        receivedAt: row.receivedAt,
-        processedAt: row.processedAt,
+        messageId: existing.messageId,
+        consumerName: existing.consumerName,
+        payloadHash: existing.payloadHash,
+        receivedAt: existing.receivedAt,
+        processedAt: existing.processedAt,
       }),
       isDuplicate: true,
     };
