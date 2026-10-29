@@ -352,69 +352,69 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Verificar redirecionamento automático para `wager-transactions-dlq.fifo`
     - _Requirements: 9.5, 9.6, 15.2_
 
-  - [ ]* 17.7 Escrever testes de integração: recuperação após reinicialização
+  - [x] 17.7 Escrever testes de integração: recuperação após reinicialização
     - Inserir `OutboxMessage` pendente diretamente no banco e reiniciar o worker
     - Verificar que o evento é publicado após reinício
     - _Requirements: 10.4, 15.2_
 
-- [ ] 18. Testes de concorrência com paralelismo real
-  - [ ] 18.1 Configurar harness de testes de concorrência
+- [x] 18. Testes de concorrência com paralelismo real
+  - [x] 18.1 Configurar harness de testes de concorrência
     - Criar `test/concurrency/setup.ts` reutilizando containers de integração
     - Adicionar script `bun run test:concurrency` no `package.json`
     - _Requirements: 15.3, 15.5_
 
-  - [ ]* 18.2 Teste de concorrência: 50 envios paralelos da mesma aposta resultam em 1 débito
+  - [x]* 18.2 Teste de concorrência: 50 envios paralelos da mesma aposta resultam em 1 débito
     - Criar wallet, enviar mesma `BET` 50x em paralelo (Promise.all)
     - Verificar: exatamente 1 `PROCESSED`, 49 `idempotentReplay: true`, saldo correto
     - Verificar invariante: `wallet.balance == saldo reconstruído pelo ledger`
     - _Requirements: 7.3, 15.3, 15.4_
 
-  - [ ]* 18.3 Teste de concorrência: duas apostas de 80 BRL sobre saldo de 100 BRL
+  - [x]* 18.3 Teste de concorrência: duas apostas de 80 BRL sobre saldo de 100 BRL
     - Cenário obrigatório da seção 8 do README
     - Verificar: 1 `PROCESSED`, 1 `REJECTED (INSUFFICIENT_BALANCE)`, saldo final `20.00`, exatamente 1 ledger entry
     - Verificar invariante final
     - _Requirements: 7.3, 15.3, 15.4_
 
-  - [ ]* 18.4 Teste de concorrência: wallets distintas processadas em paralelo
+  - [x]* 18.4 Teste de concorrência: wallets distintas processadas em paralelo
     - Criar N wallets, disparar operações simultâneas em cada uma
     - Verificar que nenhuma wallet interfere na outra
     - _Requirements: 7.5, 15.3_
 
-  - [ ]* 18.5 Teste de concorrência: ≥ 3 instâncias da aplicação simultâneas
+  - [x]* 18.5 Teste de concorrência: ≥ 3 instâncias da aplicação simultâneas
     - Subir 3 instâncias via Docker Compose (scale: 3)
     - Enviar batch de transações para a mesma wallet em paralelo
     - Verificar consistência final e invariante de ledger
     - _Requirements: 7.4, 15.3, 15.4_
 
-  - [ ]* 18.6 Teste de concorrência: worker morto após commit e antes do ack
+  - [x]* 18.6 Teste de concorrência: worker morto após commit e antes do ack
     - Simular crash do consumer após `COMMIT` mas antes de `deleteMessage`
     - Re-entregar mensagem e verificar que inbox detecta duplicata (zero efeito financeiro)
     - _Requirements: 9.3, 9.8, 15.3_
 
-  - [ ]* 18.7 Teste de concorrência: dois publishers sobre a mesma outbox
+  - [x]* 18.7 Teste de concorrência: dois publishers sobre a mesma outbox
     - Dois workers Outbox rodando simultâneos com SKIP LOCKED
     - Verificar que não há publicação dupla permanente (deduplicação via eventId)
     - _Requirements: 10.3, 15.3_
 
-  - [ ]* 18.8 Teste de concorrência: ROLLBACK/REFUND entregue antes da referência
+  - [x]* 18.8 Teste de concorrência: ROLLBACK/REFUND entregue antes da referência
     - Enviar `REFUND` antes da `BET` correspondente
     - Verificar transição `PENDING → PENDING_REFERENCE → PROCESSED` após reprocessamento
     - Verificar invariante final de ledger
     - _Requirements: 8.1, 8.2, 15.3_
 
-  - [ ]* 18.9 Escrever testes de propriedade para isolamento e redelivery (Properties 11, 16)
+  - [x]* 18.9 Escrever testes de propriedade para isolamento e redelivery (Properties 11, 16)
     - **Property 11: Redelivery SQS não duplica efeitos financeiros**
     - **Validates: Requirements 4.4, 9.8**
     - **Property 16: Isolamento entre wallets distintas**
     - **Validates: Requirements 7.5**
 
-  - [ ]* 18.10 Escrever testes de propriedade para outbox e reconciliação (Properties 14, 18)
+  - [x]* 18.10 Escrever testes de propriedade para outbox e reconciliação (Properties 14, 18)
     - **Property 14: Reconciliação — saldo materializado igual ao saldo do ledger**
     - **Validates: Requirements 6.4**
     - **Property 18: Publicação de OutboxMessage é idempotente para o consumidor**
     - **Validates: Requirements 10.3, 10.5**
 
-  - [ ]* 18.11 Escrever testes de propriedade para paginação do ledger (Properties 7, 8)
+  - [x]* 18.11 Escrever testes de propriedade para paginação do ledger (Properties 7, 8)
     - **Property 7: Paginação do ledger — completude e ausência de duplicatas**
     - **Validates: Requirements 2.7**
     - **Property 8: Hash canônico é determinístico independente da ordem de chaves**
