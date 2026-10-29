@@ -347,7 +347,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Verificar que evento é publicado exatamente uma vez (ou at-most-twice com deduplicação no consumidor)
     - _Requirements: 10.3, 15.2_
 
-  - [ ]* 17.6 Escrever testes de integração: retry e DLQ do SQS Consumer
+  - [x] 17.6 Escrever testes de integração: retry e DLQ do SQS Consumer
     - Simular erro transitório repetido até atingir `maxReceiveCount`
     - Verificar redirecionamento automático para `wager-transactions-dlq.fifo`
     - _Requirements: 9.5, 9.6, 15.2_
