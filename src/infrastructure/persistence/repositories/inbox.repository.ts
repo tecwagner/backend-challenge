@@ -1,4 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
+import type { SqlEntityManager } from '@mikro-orm/postgresql';
 import type { InboxRepositoryPort } from '../../../application/ports/inbox.repository.port.js';
 import { InboxMessage } from '../../../domain/outbox/inbox-message.js';
 import {
@@ -12,10 +13,10 @@ export class InboxRepository implements InboxRepositoryPort {
   async insertOrFind(
     message: InboxMessage,
   ): Promise<{ message: InboxMessage; isDuplicate: boolean }> {
-    const conn = this.em.getConnection();
+    const sqlEm = this.em as SqlEntityManager;
 
     // INSERT ON CONFLICT DO NOTHING RETURNING message_id — atômico, sem race condition entre instâncias.
-    const result = await conn.execute(
+    const result = await sqlEm.execute(
       `INSERT INTO inbox_messages (message_id, consumer_name, payload_hash, received_at)
        VALUES (?, ?, ?, ?)
        ON CONFLICT (consumer_name, message_id) DO NOTHING
@@ -51,8 +52,8 @@ export class InboxRepository implements InboxRepositoryPort {
   }
 
   async markProcessed(message: InboxMessage): Promise<void> {
-    const conn = this.em.getConnection();
-    await conn.execute(
+    const sqlEm = this.em as SqlEntityManager;
+    await sqlEm.execute(
       `UPDATE inbox_messages SET processed_at = ?
        WHERE consumer_name = ? AND message_id = ?`,
       [message.processedAt ?? new Date(), message.consumerName, message.messageId],
