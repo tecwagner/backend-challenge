@@ -298,21 +298,21 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Após esgotamento: `REJECTED` com `FailureCode.REFERENCE_EXPIRED` + `OutboxMessage`
     - _Requirements: 8.2, 8.3, 8.4_
 
-- [ ] 15. Observabilidade — Logs Pino e métricas Prometheus
-  - [ ] 15.1 Implementar logger estruturado Pino
+- [x] 15. Observabilidade — Logs Pino e métricas Prometheus
+  - [x] 15.1 Implementar logger estruturado Pino
     - Criar `src/shared/logger/structured-logger.ts` com Pino JSON
     - Campos obrigatórios: `correlationId`, `messageId`, `transactionId`, `walletId`, `providerId`
     - Criar `src/shared/correlation-id.middleware.ts` injetando `correlationId` em cada requisição
     - Garantir ausência de valores financeiros e dados sensíveis nos logs
     - _Requirements: 12.1, 12.2_
 
-  - [ ] 15.2 Implementar métricas Prometheus
+  - [x] 15.2 Implementar métricas Prometheus
     - Criar `src/shared/metrics/prometheus.service.ts` com `prom-client`
     - Expor métricas: `wagering_transactions_total{status,kind}`, `wagering_idempotent_replays_total`, `wagering_idempotency_conflicts_total`, `wagering_lock_conflicts_total`, `wagering_sqs_retries_total`, `wagering_dlq_messages_total`, `wagering_outbox_lag_seconds`, `wagering_transaction_duration_seconds`, `wagering_reconciliation_divergences_total`, `wagering_pending_reference_total`
     - Endpoint `GET /metrics` exposto pelo Prometheus scraper
     - _Requirements: 12.3_
 
-- [ ] 16. Checkpoint Dia 2 — Integração da camada HTTP e mensageria
+- [x] 16. Checkpoint Dia 2 — Integração da camada HTTP e mensageria
   - Subir `docker compose up` e verificar que `POST /wallets` e `POST /wagering/transactions` respondem corretamente
   - Verificar que uma mensagem SQS publicada manualmente é consumida e processa a transação
   - Perguntar ao usuário se há dúvidas antes de avançar para Dia 3.
@@ -322,23 +322,23 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
 ### Dia 3 — Testes, Observabilidade Avançada e Documentação
 
 - [ ] 17. Testes de integração com PostgreSQL e LocalStack reais
-  - [ ] 17.1 Configurar harness de testes de integração com Testcontainers
+  - [x] 17.1 Configurar harness de testes de integração com Testcontainers
     - Criar `test/integration/setup.ts` com `GenericContainer` para PostgreSQL e LocalStack
     - Configurar `docker-compose.test.yml` como alternativa ao Testcontainers
     - Adicionar script `bun run test:integration` no `package.json`
     - _Requirements: 15.2, 15.5_
 
-  - [ ]* 17.2 Escrever testes de integração: migrations e constraints de banco
+  - [x] 17.2 Escrever testes de integração: migrations e constraints de banco
     - Verificar que todas as constraints `UNIQUE` e `CHECK` são aplicadas no banco
     - Verificar que `DELETE` em `wallet_ledger_entries` é bloqueado no repositório
     - _Requirements: 14.1–14.7, 15.2_
 
-  - [ ]* 17.3 Escrever testes de integração: atomicidade wallet/ledger/inbox/outbox
+  - [x] 17.3 Escrever testes de integração: atomicidade wallet/ledger/inbox/outbox
     - Verificar que wallet + ledger + inbox + outbox são persistidos ou revertidos juntos
     - Simular kill do processo após commit para verificar recuperação pelo Outbox Worker
     - _Requirements: 10.1, 10.4, 15.2_
 
-  - [ ]* 17.4 Escrever testes de integração: deduplicação via InboxMessage e redelivery SQS
+  - [x] 17.4 Escrever testes de integração: deduplicação via InboxMessage e redelivery SQS
     - Reenviar mesma mensagem SQS e verificar zero efeito financeiro duplicado
     - _Requirements: 9.8, 4.4, 15.2_
 
