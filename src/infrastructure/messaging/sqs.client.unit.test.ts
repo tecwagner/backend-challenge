@@ -29,7 +29,7 @@ describe('SqsClient', () => {
     const messages = await sqsClient.receiveMessages(queueUrl);
 
     expect(messages).toHaveLength(1);
-    expect(messages[0].MessageId).toBe('msg-1');
+    expect(messages[0]?.MessageId).toBe('msg-1');
     expect(capturedCmd).toBeInstanceOf(ReceiveMessageCommand);
     expect(capturedCmd.input.QueueUrl).toBe(queueUrl);
     expect(capturedCmd.input.MaxNumberOfMessages).toBe(10);

@@ -13,8 +13,8 @@
     "test:concurrency": "bun test test/concurrency",
     "migration:run": "bun src/infrastructure/persistence/migrate.ts up",
     "migration:down": "bun src/infrastructure/persistence/migrate.ts down",
-    "migration:status": "bun src/infrastructure/persistence/migrate.ts status"
-
+    "migration:status": "bun src/infrastructure/persistence/migrate.ts status",
+    "postinstall": "rm -f node_modules/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node node_modules/cpu-features/build/Release/cpufeatures.node"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "3.1157.0",
