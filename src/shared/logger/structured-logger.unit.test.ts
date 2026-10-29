@@ -23,7 +23,7 @@ describe('StructuredLogger', () => {
       },
     };
 
-    const sanitized = sanitizeLogData(raw);
+    const sanitized: Record<string, any> = sanitizeLogData(raw);
 
     expect(sanitized.playerId).toBe('player-1');
     expect(sanitized.walletId).toBe('wallet-1');

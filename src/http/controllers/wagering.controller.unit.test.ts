@@ -10,7 +10,6 @@ import type { FastifyReply } from 'fastify';
 import { WageringController } from './wagering.controller.js';
 import { ProcessWagerTransactionUseCase } from '../../application/use-cases/process-wager-transaction/process-wager-transaction.use-case.js';
 import {
-  InMemoryInboxRepository,
   InMemoryLedgerRepository,
   InMemoryOutboxRepository,
   InMemoryWagerTransactionRepository,

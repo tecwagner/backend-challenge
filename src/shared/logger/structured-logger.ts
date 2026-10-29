@@ -100,15 +100,11 @@ export class StructuredLogger implements LoggerService {
   financial(event: string, context: FinancialLogContext, message?: string): void {
     const payload = sanitizeLogData({
       event,
-      correlationId: context.correlationId,
+      ...context,
       messageId: context.messageId ?? null,
       transactionId: context.transactionId ?? null,
       walletId: context.walletId ?? null,
       providerId: context.providerId ?? null,
-      status: context.status,
-      kind: context.kind,
-      playerId: context.playerId,
-      ...context,
     });
 
     this.pino.info(payload, message ?? `Financial event: ${event}`);

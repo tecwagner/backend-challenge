@@ -6,7 +6,6 @@ import { decodeLedgerCursor, encodeLedgerCursor } from '../pagination/ledger-cur
 import { CreateWalletUseCase } from '../../application/use-cases/create-wallet/create-wallet.use-case.js';
 import { ReconcileWalletUseCase } from '../../application/use-cases/reconcile-wallet/reconcile-wallet.use-case.js';
 import {
-  InMemoryInboxRepository,
   InMemoryLedgerRepository,
   InMemoryOutboxRepository,
   SerialUnitOfWork,
