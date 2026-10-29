@@ -342,7 +342,7 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - Reenviar mesma mensagem SQS e verificar zero efeito financeiro duplicado
     - _Requirements: 9.8, 4.4, 15.2_
 
-  - [ ]* 17.5 Escrever testes de integração: Outbox Worker com publishers concorrentes
+  - [x] 17.5 Escrever testes de integração: Outbox Worker com publishers concorrentes
     - Dois workers tentam publicar o mesmo `OutboxMessage` simultaneamente (SKIP LOCKED)
     - Verificar que evento é publicado exatamente uma vez (ou at-most-twice com deduplicação no consumidor)
     - _Requirements: 10.3, 15.2_
