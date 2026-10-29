@@ -25,6 +25,8 @@ let activeOrm: MikroORM | null = null;
 let activeSqsClient: SQSClient | null = null;
 let activeContext: TestEnvironmentContext | null = null;
 
+let activeReferences = 0;
+
 /**
  * Checks whether an external TCP port is accepting connections (used to detect docker-compose.test.yml).
  */
@@ -60,6 +62,7 @@ async function isPortOpen(host: string, port: number, timeoutMs = 800): Promise<
  * 2. Testcontainers (default): Automatically spins up ephemeral containers.
  */
 export async function startTestEnvironment(): Promise<TestEnvironmentContext> {
+  activeReferences++;
   if (activeContext) {
     return activeContext;
   }
@@ -287,8 +290,18 @@ export async function purgeTestQueues(sqsClient?: SQSClient): Promise<void> {
 
 /**
  * Shuts down ORM, SQS client, and Testcontainers (if any were started).
+ * Uses reference counting so multi-file test suites share the active environment without premature destruction.
  */
-export async function stopTestEnvironment(): Promise<void> {
+export async function stopTestEnvironment(force = false): Promise<void> {
+  if (!force) {
+    activeReferences = Math.max(0, activeReferences - 1);
+    if (activeReferences > 0) {
+      return;
+    }
+  }
+
+  activeReferences = 0;
+
   if (activeOrm) {
     await activeOrm.close();
     activeOrm = null;
