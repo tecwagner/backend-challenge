@@ -1,5 +1,110 @@
 # Technical Challenge — Distributed Wagering Processor
 
+> Serviço financeiro distribuído de alta consistência para processamento de transações de apostas com precisão monetária (`decimal.js`), atomicidade transacional (PostgreSQL + MikroORM), concorrência com row-level pessimistic locking, idempotência persistente com hash canônico SHA-256 e mensageria assíncrona (Transactional Outbox + Deduplicação Inbox + AWS SQS FIFO).
+
+---
+
+## Guia Rápido de Instalação e Execução
+
+### 1. Pré-requisitos
+- [Bun](https://bun.sh/) `>= 1.1.x`
+- [Docker](https://www.docker.com/) `>= 24.x`
+- [Docker Compose](https://docs.docker.com/compose/) `>= 2.x`
+
+### 2. Configuração de Ambiente
+Copie o arquivo de exemplo de variáveis de ambiente:
+```bash
+cp .env.example .env
+```
+
+### 3. Subir Serviços de Infraestrutura
+Inicie o PostgreSQL e o LocalStack (com filas FIFO configuradas):
+```bash
+docker compose up -d postgres localstack
+```
+> **Nota:** Para subir a aplicação inteira em múltiplos nós via Docker Compose:
+> ```bash
+> docker compose up --build
+> ```
+
+### 4. Instalar Dependências e Executar Migrations
+```bash
+# Instalação das dependências com Bun
+bun install
+
+# Execução das migrations versionadas no PostgreSQL
+bun run migration:run
+```
+
+### 5. Iniciar a Aplicação em Modo Desenvolvimento
+```bash
+bun run dev
+```
+A API Fastify estará disponível em `http://localhost:3000`.
+
+---
+
+## Execução de Testes
+
+A suite de testes cobre todos os níveis arquiteturais com containers reais:
+
+| Comando | Descrição | Escopo |
+|---|---|---|
+| `bun run test` | Testes Unitários e Propriedades | Valida aritmética `Money`, regras de transição de status de transações, idempotência com payload canônico e isolamento de domínio (372 testes). |
+| `bun run test:integration` | Testes de Integração com Containers Reais | PostgreSQL + LocalStack reais via Testcontainers: migrations, constraints de banco, atomicidade wallet/ledger/inbox/outbox, redelivery SQS e retry/DLQ (36 testes). |
+| `bun run test:concurrency` | Testes de Concorrência com Paralelismo Real | 50 envios simultâneos da mesma aposta, corrida de saldo sobre hot wallet, wallets isoladas, crash recovery após commit, publishers concorrentes da outbox e reprocessamento fora de ordem (13 testes). |
+
+```bash
+# Executa todos os testes unitários e de propriedades
+bun run test
+
+# Executa todos os testes de integração (PostgreSQL + LocalStack)
+bun run test:integration
+
+# Executa todos os testes de concorrência com paralelismo real
+bun run test:concurrency
+```
+
+---
+
+## Variáveis de Ambiente
+
+Todas as variáveis de configuração estão documentadas em [.env.example](file://.env.example):
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `NODE_ENV` | `development` | Ambiente de execução (`development`, `production`, `test`) |
+| `PORT` | `3000` | Porta HTTP do servidor Fastify/NestJS |
+| `LOG_LEVEL` | `info` | Nível de log do Pino (`trace`, `debug`, `info`, `warn`, `error`) |
+| `DATABASE_URL` | `postgresql://wagering:wagering@localhost:5432/wagering` | URL de conexão com o PostgreSQL |
+| `DB_LOCK_TIMEOUT_MS` | `5000` | Timeout para aquisição de lock pessimista (`SELECT FOR UPDATE`) |
+| `DB_STATEMENT_TIMEOUT_MS` | `30000` | Timeout máximo de execução de statements SQL |
+| `AWS_ENDPOINT` | `http://localhost:4566` | Endpoint do SQS (LocalStack local) |
+| `AWS_REGION` | `us-east-1` | Região da AWS |
+| `AWS_ACCESS_KEY_ID` | `test` | Credencial AWS (LocalStack) |
+| `AWS_SECRET_ACCESS_KEY` | `test` | Credencial AWS (LocalStack) |
+| `QUEUE_URL` | `http://localhost:4566/000000000000/wager-transactions.fifo` | Fila SQS FIFO principal de transações |
+| `INTEGRATION_EVENTS_QUEUE_URL` | `http://localhost:4566/000000000000/integration-events.fifo` | Fila SQS FIFO de eventos de integração da outbox |
+| `DLQ_URL` | `http://localhost:4566/000000000000/wager-transactions-dlq.fifo` | Dead-Letter Queue para mensagens após esgotar retries |
+| `OUTBOX_POLL_INTERVAL_MS` | `1000` | Intervalo do ciclo de polling do Outbox Worker (ms) |
+| `OUTBOX_BATCH_SIZE` | `10` | Quantidade máxima de mensagens por ciclo da Outbox |
+| `OUTBOX_MAX_ATTEMPTS` | `10` | Limite de retries para publicação de mensagem na outbox |
+| `PENDING_REF_CRON` | `*/30 * * * * *` | Expressão cron para varredura de `PENDING_REFERENCE` |
+| `PENDING_REF_MAX_ATTEMPTS` | `5` | Máximo de tentativas antes de rejeitar transações `PENDING_REFERENCE` |
+
+---
+
+## Testando a API via REST Client (`api.http`)
+
+O repositório inclui o arquivo [api.http](file://api.http) na raiz, pronto para testes interativos com a extensão **REST Client**:
+- **Carteiras**: Criação (`POST /wallets`), Consulta de saldo (`GET /wallets/:id`), Extrato com paginação keyset (`GET /wallets/:id/ledger`), Reconciliação (`POST /wallets/:id/reconcile`).
+- **Transações**: Envio de `BET`, `WIN`, `LOSS`, `REFUND` e `ROLLBACK` via `POST /transactions` com header `Idempotency-Key`.
+- **Health Checks & Métricas**: `GET /health/liveness`, `GET /health/readiness`, `GET /metrics` (Prometheus).
+
+Para detalhes completos sobre as decisões de design, consulte o [ARCHITECTURE.md](file://ARCHITECTURE.md).
+
+---
+
 ## Bem-vindo à Jungle Gaming 🦧
 
 A **Jungle Gaming** é uma software house especializada em iGaming — desenvolvemos plataformas de cassino online com tecnologia de ponta: NestJS, Bun, TanStack, DDD e arquitetura orientada a eventos. Somos apaixonados por engenharia de software e acreditamos que grandes produtos nascem de grandes times.

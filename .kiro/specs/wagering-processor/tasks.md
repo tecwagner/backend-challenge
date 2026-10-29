@@ -420,22 +420,22 @@ Cada tarefa representa um commit atômico e referencia explicitamente os requisi
     - **Property 8: Hash canônico é determinístico independente da ordem de chaves**
     - **Validates: Requirements 3.3**
 
-- [ ] 19. Documentação final
-  - [ ] 19.1 Atualizar `README.md` com setup e comandos
+- [x] 19. Documentação final
+  - [x] 19.1 Atualizar `README.md` com setup e comandos
     - Pré-requisitos: Bun 1.x, Docker, Docker Compose
     - Comandos: `bun install`, `docker compose up`, `bun run migration:run`, `bun run dev`
     - Comandos de teste: `bun run test`, `bun run test:integration`, `bun run test:concurrency`
     - Variáveis de ambiente documentadas
     - _Requirements: documentação (README §14)_
 
-  - [ ] 19.2 Criar `ARCHITECTURE.md` com decisões técnicas e trade-offs
+  - [x] 19.2 Criar `ARCHITECTURE.md` com decisões técnicas e trade-offs
     - Justificar: ORM (MikroORM), locking (pessimistic), decimal (decimal.js), outbox (SKIP LOCKED), hash (SHA-256 canônico), autenticação (no-op + ProviderIdentityPort)
     - Documentar taxonomia de `FailureCode`
     - Descrever ponto de extensão para Identity Provider (Keycloak/Zitadel)
     - Documentar limitações conhecidas e trade-offs aceitos
     - _Requirements: documentação (README §14), 13.2_
 
-- [ ] 20. Checkpoint Final — Validação completa
+- [x] 20. Checkpoint Final — Validação completa
   - Executar `bun run test` (unitários + propriedades) — todos devem passar
   - Executar `bun run test:integration` — todos devem passar com containers reais
   - Executar `bun run test:concurrency` — verificar invariante `wallet.balance == saldo do ledger` em todos os cenários
