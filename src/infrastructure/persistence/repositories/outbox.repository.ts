@@ -1,4 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
+import type { SqlEntityManager } from '@mikro-orm/postgresql';
 import type { OutboxRepositoryPort } from '../../../application/ports/outbox.repository.port.js';
 import { OutboxMessage } from '../../../domain/outbox/outbox-message.js';
 import {
@@ -26,8 +27,8 @@ export class OutboxRepository implements OutboxRepositoryPort {
 
   async claimDue(now: Date, limit: number): Promise<OutboxMessage[]> {
     // SELECT FOR UPDATE SKIP LOCKED — publishers concorrentes não colidem.
-    const conn = this.em.getConnection();
-    const rows = await conn.execute<
+    const sqlEm = this.em as SqlEntityManager;
+    const rows = await sqlEm.execute<
       Array<{
         id: string;
         aggregateId: string;
@@ -80,8 +81,8 @@ export class OutboxRepository implements OutboxRepositoryPort {
   }
 
   async update(message: OutboxMessage): Promise<void> {
-    const conn = this.em.getConnection();
-    await conn.execute(
+    const sqlEm = this.em as SqlEntityManager;
+    await sqlEm.execute(
       `UPDATE outbox_messages
        SET attempts = ?, next_attempt_at = ?, published_at = ?
        WHERE id = ?`,
